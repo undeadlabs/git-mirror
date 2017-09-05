@@ -1,10 +1,10 @@
 package main
 
 import (
-	"path/filepath"
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +17,7 @@ type duration struct {
 
 type config struct {
 	ListenAddr string
+	NoServe    bool
 	Interval   duration
 	BasePath   string
 	Repo       []repo
@@ -25,6 +26,7 @@ type config struct {
 type repo struct {
 	Name     string
 	Origin   string
+	Mirror   string
 	Interval duration
 }
 
@@ -70,24 +72,32 @@ func parseConfig(filename string) (cfg config, repos map[string]repo, err error)
 			err = fmt.Errorf("Origin required for repo %d in config %s", i+1, filename)
 			return
 		}
+		if r.Mirror == "" {
+			err = fmt.Errorf("Mirror required for repo %d in config %s", i+1, filename)
+			return
+		}
 
 		// Generate a name if there isn't one already
-		if r.Name == "" {
-			if u, err := url.Parse(r.Origin); err == nil && u.Scheme != "" {
-				r.Name = u.Host + u.Path
-			} else {
-				parts := strings.Split(r.Origin, "@")
-				if l := len(parts); l > 0 {
-					r.Name = strings.Replace(parts[l-1], ":", "/", -1)
+		if !cfg.NoServe {
+			if r.Name == "" {
+				var u *url.URL
+				if u, err = url.Parse(r.Origin); err == nil && u.Scheme != "" {
+					r.Name = u.Host + u.Path
+				} else {
+					// deal with origins like git@github.com:chappjc/git-mirror
+					parts := strings.Split(r.Origin, "@")
+					if l := len(parts); l > 0 {
+						r.Name = strings.Replace(parts[l-1], ":", "/", -1)
+					}
 				}
 			}
-		}
-		if r.Name == "" {
-			err = fmt.Errorf("Could not generate name for Origin %s in config %s, please manually specify a Name", r.Origin, filename)
-		}
-		if _, ok := repos[r.Name]; ok {
-			err = fmt.Errorf("Multiple repos with name %s in config %s", r.Name, filename)
-			return
+			if r.Name == "" {
+				err = fmt.Errorf("Could not generate name for Origin %s in config %s, please manually specify a Name", r.Origin, filename)
+			}
+			if _, ok := repos[r.Name]; ok {
+				err = fmt.Errorf("Multiple repos with name %s in config %s", r.Name, filename)
+				return
+			}
 		}
 
 		if r.Interval.Duration == 0 {

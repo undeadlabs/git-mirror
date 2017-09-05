@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -22,7 +23,9 @@ func main() {
 	}
 
 	// Run background threads to keep mirrors up to date.
+	var wg sync.WaitGroup
 	for _, r := range repos {
+		wg.Add(1)
 		go func(r repo) {
 			for {
 				log.Printf("updating %s", r.Name)
@@ -33,13 +36,18 @@ func main() {
 				}
 				time.Sleep(r.Interval.Duration)
 			}
+			wg.Done()
 		}(r)
 	}
 
 	// Run HTTP server to serve mirrors.
-	http.Handle("/", http.FileServer(http.Dir(cfg.BasePath)))
-	log.Printf("starting web server on %s", cfg.ListenAddr)
-	if err := http.ListenAndServe(cfg.ListenAddr, nil); err != nil {
-		log.Fatalf("failed to start server, %s", err)
+	if !cfg.NoServe {
+		http.Handle("/", http.FileServer(http.Dir(cfg.BasePath)))
+		log.Printf("starting web server on %s", cfg.ListenAddr)
+		if err := http.ListenAndServe(cfg.ListenAddr, nil); err != nil {
+			log.Fatalf("failed to start server, %s", err)
+		}
 	}
+
+	wg.Wait()
 }
