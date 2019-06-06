@@ -78,26 +78,24 @@ func parseConfig(filename string) (cfg config, repos map[string]repo, err error)
 		}
 
 		// Generate a name if there isn't one already
-		if !cfg.NoServe {
-			if r.Name == "" {
-				var u *url.URL
-				if u, err = url.Parse(r.Origin); err == nil && u.Scheme != "" {
-					r.Name = u.Host + u.Path
-				} else {
-					// deal with origins like git@github.com:chappjc/git-mirror
-					parts := strings.Split(r.Origin, "@")
-					if l := len(parts); l > 0 {
-						r.Name = strings.Replace(parts[l-1], ":", "/", -1)
-					}
+		if r.Name == "" {
+			var u *url.URL
+			if u, err = url.Parse(r.Origin); err == nil && u.Scheme != "" {
+				r.Name = u.Host + u.Path
+			} else {
+				// deal with origins like git@github.com:chappjc/git-mirror
+				parts := strings.Split(r.Origin, "@")
+				if l := len(parts); l > 0 {
+					r.Name = strings.Replace(parts[l-1], ":", "/", -1)
 				}
 			}
-			if r.Name == "" {
-				err = fmt.Errorf("Could not generate name for Origin %s in config %s, please manually specify a Name", r.Origin, filename)
-			}
-			if _, ok := repos[r.Name]; ok {
-				err = fmt.Errorf("Multiple repos with name %s in config %s", r.Name, filename)
-				return
-			}
+		}
+		if r.Name == "" {
+			err = fmt.Errorf("Could not generate name for Origin %s in config %s, please manually specify a Name", r.Origin, filename)
+		}
+		if _, ok := repos[r.Name]; ok {
+			err = fmt.Errorf("Multiple repos with name %s in config %s", r.Name, filename)
+			return
 		}
 
 		if r.Interval.Duration == 0 {
