@@ -32,7 +32,11 @@ func main() {
 				if err := mirror(cfg, r); err != nil {
 					log.Printf("error updating %s, %s", r.Name, err)
 				} else {
-					log.Printf("updated %s", r.Name)
+					if r.Mirror != "" {
+						log.Printf("updated %s (pushed to %s)", r.Name, r.Mirror)
+					} else {
+						log.Printf("updated %s", r.Name)
+					}
 				}
 				time.Sleep(r.Interval.Duration)
 			}
